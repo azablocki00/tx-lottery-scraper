@@ -25,8 +25,7 @@ exports.handler = async (event, context) => {
     const $ = cheerio.load(html);
     const games = [];
 
-    // The all.html table has columns: Game #, Game Name, Start Date, Ticket Price
-    // The game number cell contains a link to the detail page
+    // The all.html table columns: Game #, Start Date, Ticket Price, Game Name
     $('table tbody tr').each((i, row) => {
       const cells = $(row).find('td');
       if (cells.length < 4) return;
@@ -43,9 +42,10 @@ exports.handler = async (event, context) => {
         ? href
         : `${BASE_URL}${href.startsWith('/') ? '' : '/'}${href}`;
 
-      const gameName = $(cells[1]).text().trim();
-      const startDate = $(cells[2]).text().trim();
-      const ticketPriceRaw = $(cells[3]).text().trim();
+      // Correct column order: Game#, Start Date, Ticket Price, Game Name
+      const startDate = $(cells[1]).text().trim();
+      const ticketPriceRaw = $(cells[2]).text().trim();
+      const gameName = $(cells[3]).text().trim();
       const ticketPrice = parseFloat(ticketPriceRaw.replace(/[^0-9.]/g, '')) || 0;
 
       if (gameNumber && gameName) {
@@ -71,9 +71,9 @@ exports.handler = async (event, context) => {
 
         const gameNumber = link.text().trim();
         const detailUrl = href.startsWith('http') ? href : `${BASE_URL}${href}`;
-        const gameName = $(cells[1]).text().trim();
-        const startDate = $(cells[2]).text().trim();
-        const ticketPrice = parseFloat($(cells[3]).text().replace(/[^0-9.]/g, '')) || 0;
+        const startDate = $(cells[1]).text().trim();
+        const ticketPrice = parseFloat($(cells[2]).text().replace(/[^0-9.]/g, '')) || 0;
+        const gameName = $(cells[3]).text().trim();
 
         if (gameNumber) {
           games.push({ gameNumber, gameName, startDate, ticketPrice, detailUrl });

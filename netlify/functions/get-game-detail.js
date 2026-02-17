@@ -50,12 +50,19 @@ exports.handler = async (event, context) => {
     const $ = cheerio.load(html);
 
     // --- Parse Game Info Fields ---
-    // These appear as labeled rows or definition lists on the page.
-    // Strategy: scan all text on page for known labels.
     let packSize = 0;
     let guaranteedPrizeAmount = 0;
     let totalTickets = 0;
     let overallOdds = 'N/A';
+
+    // Get full text to search for specific patterns
+    const fullText = $('body').text();
+
+    // Extract Total Tickets from "There are approximately X* tickets."
+    const ticketMatch = fullText.match(/There are approximately\s+([\d,]+)\*?\s+tickets/i);
+    if (ticketMatch) {
+      totalTickets = parseNum(ticketMatch[1]);
+    }
 
     // Method 1: Look for table rows or labeled elements
     $('table tr, dl, .game-detail, p').each((i, el) => {
@@ -70,10 +77,6 @@ exports.handler = async (event, context) => {
         const match = text.match(/\$[\d,]+/);
         if (match) guaranteedPrizeAmount = parseDollar(match[0]);
       }
-      if ((lower.includes('total number of tickets') || lower.includes('total tickets')) && totalTickets === 0) {
-        const match = text.match(/[\d,]+/);
-        if (match) totalTickets = parseNum(match[0]);
-      }
       if (lower.includes('overall odds') && overallOdds === 'N/A') {
         overallOdds = parseOdds(text);
       }
@@ -81,7 +84,6 @@ exports.handler = async (event, context) => {
 
     // Method 2: Scan all text nodes for key-value patterns if Method 1 missed anything
     if (packSize === 0 || totalTickets === 0) {
-      const fullText = $('body').text();
       const lines = fullText.split('\n').map(l => l.trim()).filter(Boolean);
 
       for (let j = 0; j < lines.length; j++) {
@@ -91,11 +93,6 @@ exports.handler = async (event, context) => {
           const sameLineMatch = lines[j].match(/pack size[^\d]*([\d,]+)/i);
           if (sameLineMatch) packSize = parseNum(sameLineMatch[1]);
           else if (lines[j + 1]) packSize = parseNum(lines[j + 1]);
-        }
-        if (lower.includes('total number of tickets') && totalTickets === 0) {
-          const sameLineMatch = lines[j].match(/tickets[^\d]*([\d,]+)/i);
-          if (sameLineMatch) totalTickets = parseNum(sameLineMatch[1]);
-          else if (lines[j + 1]) totalTickets = parseNum(lines[j + 1]);
         }
         if (lower.includes('guaranteed') && guaranteedPrizeAmount === 0) {
           const match = lines[j].match(/\$[\d,]+/);
