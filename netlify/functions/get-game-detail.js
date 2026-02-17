@@ -64,47 +64,23 @@ exports.handler = async (event, context) => {
       totalTickets = parseNum(ticketMatch[1]);
     }
 
-    // Method 1: Look for table rows or labeled elements
-    $('table tr, dl, .game-detail, p').each((i, el) => {
-      const text = $(el).text();
-      const lower = text.toLowerCase();
+    // Extract Guaranteed Total Prize Amount - look for exact pattern with equals sign
+    // Pattern: "Guaranteed Total Prize Amount = $950 per pack"
+    const guaranteedMatch = fullText.match(/Guaranteed Total Prize Amount\s*=\s*\$?([\d,]+)/i);
+    if (guaranteedMatch) {
+      guaranteedPrizeAmount = parseDollar(guaranteedMatch[1]);
+    }
 
-      if (lower.includes('pack size') && packSize === 0) {
-        const match = text.match(/[\d,]+/);
-        if (match) packSize = parseNum(match[0]);
-      }
-      if ((lower.includes('guaranteed') || lower.includes('guaranteed total prize')) && guaranteedPrizeAmount === 0) {
-        const match = text.match(/\$[\d,]+/);
-        if (match) guaranteedPrizeAmount = parseDollar(match[0]);
-      }
-      if (lower.includes('overall odds') && overallOdds === 'N/A') {
-        overallOdds = parseOdds(text);
-      }
-    });
+    // Extract Pack Size - look for "Pack Size: X tickets"
+    const packSizeMatch = fullText.match(/Pack Size:\s*([\d,]+)/i);
+    if (packSizeMatch) {
+      packSize = parseNum(packSizeMatch[1]);
+    }
 
-    // Method 2: Scan all text nodes for key-value patterns if Method 1 missed anything
-    if (packSize === 0 || totalTickets === 0) {
-      const lines = fullText.split('\n').map(l => l.trim()).filter(Boolean);
-
-      for (let j = 0; j < lines.length; j++) {
-        const lower = lines[j].toLowerCase();
-        if (lower.includes('pack size') && packSize === 0) {
-          // Value may be on same line or next line
-          const sameLineMatch = lines[j].match(/pack size[^\d]*([\d,]+)/i);
-          if (sameLineMatch) packSize = parseNum(sameLineMatch[1]);
-          else if (lines[j + 1]) packSize = parseNum(lines[j + 1]);
-        }
-        if (lower.includes('guaranteed') && guaranteedPrizeAmount === 0) {
-          const match = lines[j].match(/\$[\d,]+/);
-          if (match) guaranteedPrizeAmount = parseDollar(match[0]);
-        }
-        if (lower.includes('overall odds') && overallOdds === 'N/A') {
-          overallOdds = parseOdds(lines[j]);
-          if (overallOdds === lines[j].trim() && lines[j + 1]) {
-            overallOdds = parseOdds(lines[j + 1]);
-          }
-        }
-      }
+    // Extract Overall Odds
+    const oddsMatch = fullText.match(/Overall odds[^.]*?(1\s+in\s+[\d,.]+)/i);
+    if (oddsMatch) {
+      overallOdds = parseOdds(oddsMatch[1]);
     }
 
     // --- Parse Prizes Printed Table ---
@@ -132,7 +108,7 @@ exports.handler = async (event, context) => {
       const headerRow = $(table).find('thead tr, tr').first();
       headerRow.find('th, td').each((j, cell) => {
         const cellText = $(cell).text().toLowerCase();
-        if (cellText.includes('prize') && cellText.includes('amount')) prizeAmountCol = j;
+        if (cellText.includes('amount')) prizeAmountCol = j;
         else if (cellText.includes('in game')) inGameCol = j;
         else if (cellText.includes('claimed')) claimedCol = j;
       });
