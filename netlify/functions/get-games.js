@@ -24,31 +24,43 @@ exports.handler = async (event, context) => {
     const html = await response.text();
     const $ = cheerio.load(html);
     const games = [];
+    const seenGameNumbers = new Set();
 
-    // The all.html table columns: Game #, Start Date, Ticket Price, Game Name
-    $('table tbody tr').each((i, row) => {
+    // Find all table rows
+    // Each game has multiple rows (one for game info, others for prize tiers)
+    // We only want rows where the first column has a link to the game detail page
+    $('table tr').each((i, row) => {
       const cells = $(row).find('td');
-      if (cells.length < 4) return;
+      
+      // Skip if not enough columns
+      if (cells.length < 5) return;
 
+      // Check if first cell has a link (this identifies a game row vs prize tier row)
       const gameNumberCell = $(cells[0]);
       const link = gameNumberCell.find('a');
       const href = link.attr('href');
-      const gameNumber = link.text().trim() || gameNumberCell.text().trim();
+      
+      if (!href || !href.includes('details.html')) return;
 
-      if (!gameNumber || !href) return;
+      const gameNumber = link.text().trim();
+      
+      // Skip duplicates
+      if (seenGameNumbers.has(gameNumber)) return;
+      seenGameNumbers.add(gameNumber);
 
       // Build absolute URL for detail page
       const detailUrl = href.startsWith('http')
         ? href
         : `${BASE_URL}${href.startsWith('/') ? '' : '/'}${href}`;
 
-      // Correct column order: Game#, Start Date, Ticket Price, Game Name
+      // Column order: Game#(0), Start Date(1), Ticket Price(2), Empty(3), Game Name(4)
       const startDate = $(cells[1]).text().trim();
       const ticketPriceRaw = $(cells[2]).text().trim();
-      const gameName = $(cells[3]).text().trim();
+      const gameName = $(cells[4]).text().trim();
       const ticketPrice = parseFloat(ticketPriceRaw.replace(/[^0-9.]/g, '')) || 0;
 
-      if (gameNumber && gameName) {
+      // Validate we have actual data
+      if (gameNumber && gameName && gameName.length > 0 && gameName !== '*') {
         games.push({
           gameNumber,
           gameName,
@@ -59,27 +71,7 @@ exports.handler = async (event, context) => {
       }
     });
 
-    if (games.length === 0) {
-      // Fallback: try alternate table selectors
-      console.log('Primary selector found 0 games, trying fallback...');
-      $('tr').each((i, row) => {
-        const cells = $(row).find('td');
-        if (cells.length < 4) return;
-        const link = $(cells[0]).find('a');
-        const href = link.attr('href');
-        if (!href || !href.includes('gamedetail')) return;
-
-        const gameNumber = link.text().trim();
-        const detailUrl = href.startsWith('http') ? href : `${BASE_URL}${href}`;
-        const startDate = $(cells[1]).text().trim();
-        const ticketPrice = parseFloat($(cells[2]).text().replace(/[^0-9.]/g, '')) || 0;
-        const gameName = $(cells[3]).text().trim();
-
-        if (gameNumber) {
-          games.push({ gameNumber, gameName, startDate, ticketPrice, detailUrl });
-        }
-      });
-    }
+    console.log(`Successfully scraped ${games.length} games`);
 
     return {
       statusCode: 200,
