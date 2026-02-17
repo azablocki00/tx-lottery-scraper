@@ -1,18 +1,6 @@
 import * as XLSX from 'xlsx';
 import type { Game } from '../types/Game';
 
-const CURRENCY_COLS = new Set([
-  'ticketPrice', 'packCost', 'guaranteedPrizeAmount', 'maxLoss', 'topPrize'
-]);
-
-function formatValue(key: string, value: unknown): unknown {
-  if (value === null || value === undefined) return '';
-  if (CURRENCY_COLS.has(key) && typeof value === 'number') {
-    return value; // Keep as number; we'll format in Excel
-  }
-  return value;
-}
-
 export function exportToXlsx(games: Game[], filename = 'texas-lottery-comparison.xlsx') {
   const headers = [
     'Game #',
