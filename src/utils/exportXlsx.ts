@@ -11,6 +11,7 @@ export function exportToXlsx(games: Game[], filename = 'texas-lottery-comparison
     'Guaranteed Total Prize Amount',
     'Pack Cost',
     'Max Loss (Guaranteed)',
+    'Max Loss %',
     'Top Prize',
     'Top Prizes Remaining',
     'Total Tickets',
@@ -26,6 +27,7 @@ export function exportToXlsx(games: Game[], filename = 'texas-lottery-comparison
     g.guaranteedPrizeAmount,
     g.packCost,
     g.maxLoss,
+    g.maxLossPercent / 100, // Convert to decimal for Excel percentage format
     g.topPrize,
     g.topPrizesRemaining,
     g.totalTickets,
@@ -45,14 +47,15 @@ export function exportToXlsx(games: Game[], filename = 'texas-lottery-comparison
     { wch: 28 },  // Guaranteed Total
     { wch: 12 },  // Pack Cost
     { wch: 18 },  // Max Loss
+    { wch: 12 },  // Max Loss %
     { wch: 14 },  // Top Prize
     { wch: 18 },  // Top Prizes Remaining
     { wch: 14 },  // Total Tickets
     { wch: 16 },  // Overall Odds
   ];
 
-  // Apply currency format to dollar columns (cols D, F, G, H, I = indices 3,5,6,7,8)
-  const currencyIndices = [3, 5, 6, 7, 8];
+  // Apply currency format to dollar columns (cols D, F, G, H, J = indices 3,5,6,7,9)
+  const currencyIndices = [3, 5, 6, 7, 9];
   const totalRows = rows.length + 1;
   currencyIndices.forEach(colIdx => {
     for (let row = 2; row <= totalRows; row++) {
@@ -62,6 +65,14 @@ export function exportToXlsx(games: Game[], filename = 'texas-lottery-comparison
       }
     }
   });
+
+  // Apply percentage format to Max Loss % column (col I = index 8)
+  for (let row = 2; row <= totalRows; row++) {
+    const cellRef = XLSX.utils.encode_cell({ r: row - 1, c: 8 });
+    if (ws[cellRef]) {
+      ws[cellRef].z = '0.00%';
+    }
+  }
 
   // Bold header row
   for (let c = 0; c < headers.length; c++) {

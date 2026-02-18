@@ -11,12 +11,14 @@ const BATCH_SIZE = 8; // concurrent detail requests
 function computeFields(summary: GameSummary, detail: GameDetail): Game {
   const packCost = summary.ticketPrice * detail.packSize;
   const maxLoss = detail.guaranteedPrizeAmount - packCost;
+  const maxLossPercent = packCost > 0 ? (Math.abs(maxLoss) / packCost) * 100 : 0;
   const topPrizesRemaining = Math.max(0, detail.topPrizeInGame - detail.topPrizeClaimed);
   return {
     ...summary,
     ...detail,
     packCost,
     maxLoss,
+    maxLossPercent,
     topPrizesRemaining,
     status: 'done',
   };
@@ -27,6 +29,10 @@ export default function App() {
   const [games, setGames] = useState<Game[]>([]);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [errorMsg, setErrorMsg] = useState('');
+  
+  // Filter state
+  const [minDate, setMinDate] = useState('2025-01-01');
+  const [selectedPrices, setSelectedPrices] = useState<number[]>([]);
 
   const loadGames = useCallback(async () => {
     setAppState('fetching-list');
@@ -60,6 +66,7 @@ export default function App() {
       prizesFound: false,
       packCost: 0,
       maxLoss: 0,
+      maxLossPercent: 0,
       topPrizesRemaining: 0,
       status: 'loading',
     }));
@@ -202,7 +209,15 @@ export default function App() {
         )}
 
         {/* Table */}
-        {games.length > 0 && <GameTable games={games} />}
+        {games.length > 0 && (
+          <GameTable 
+            games={games}
+            minDate={minDate}
+            onMinDateChange={setMinDate}
+            selectedPrices={selectedPrices}
+            onPriceFilterChange={setSelectedPrices}
+          />
+        )}
       </main>
     </div>
   );

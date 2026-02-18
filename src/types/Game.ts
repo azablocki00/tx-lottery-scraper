@@ -21,6 +21,7 @@ export interface Game extends GameSummary, GameDetail {
   // Calculated fields
   packCost: number;           // ticketPrice * packSize
   maxLoss: number;            // guaranteedPrizeAmount - packCost
+  maxLossPercent: number;     // (abs(maxLoss) / packCost) * 100
   topPrizesRemaining: number; // topPrizeInGame - topPrizeClaimed
   status: 'loading' | 'done' | 'error';
   errorMessage?: string;
