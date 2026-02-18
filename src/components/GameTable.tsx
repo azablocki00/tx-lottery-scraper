@@ -26,7 +26,21 @@ interface ColDef {
 }
 
 const COLUMNS: ColDef[] = [
-  { key: 'gameNumber',            label: 'Game #',             render: g => g.gameNumber,                            align: 'center' },
+  { 
+    key: 'gameNumber',
+    label: 'Game #',
+    render: g => (
+      <a 
+        href={g.detailUrl} 
+        target="_blank" 
+        rel="noopener noreferrer"
+        className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
+      >
+        {g.gameNumber}
+      </a>
+    ),
+    align: 'center'
+  },
   { key: 'gameName',              label: 'Game Name',          render: g => g.gameName,                              align: 'left'   },
   { key: 'startDate',             label: 'Start Date',         render: g => g.startDate,                             align: 'center' },
   { key: 'ticketPrice',           label: 'Ticket Price',       render: g => fmt(g.ticketPrice),                      align: 'right'  },

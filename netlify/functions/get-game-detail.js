@@ -77,8 +77,9 @@ exports.handler = async (event, context) => {
       packSize = parseNum(packSizeMatch[1]);
     }
 
-    // Extract Overall Odds
-    const oddsMatch = fullText.match(/Overall odds[^.]*?(1\s+in\s+[\d,.]+)/i);
+    // Extract Overall Odds - more lenient pattern that allows for game names with periods
+    // Pattern: "Overall odds of winning any prize in Lucky No. 7 are 1 in 4.33"
+    const oddsMatch = fullText.match(/Overall odds[\s\S]{0,200}?(1\s+in\s+[\d,.]+)/i);
     if (oddsMatch) {
       overallOdds = parseOdds(oddsMatch[1]);
     }
