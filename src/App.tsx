@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import type { Game, GameSummary, GameDetail, SortField, SortDirection } from './types/Game';
 import GameTable from './components/GameTable';
 import LoadingBar from './components/LoadingBar';
@@ -78,11 +78,32 @@ export default function App() {
   const [sortField, setSortField] = useState<SortField>(() => loadSettings().sortField);
   const [sortDir, setSortDir] = useState<SortDirection>(() => loadSettings().sortDir);
 
-  useEffect(() => {
+  // Always holds the latest settings so persist() never captures stale values
+  const settingsRef = useRef<Settings>({ minDate, selectedPrices, sortField, sortDir });
+  settingsRef.current = { minDate, selectedPrices, sortField, sortDir };
+
+  const persist = useCallback((patch: Partial<Settings>) => {
+    const next = { ...settingsRef.current, ...patch };
     try {
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify({ minDate, selectedPrices, sortField, sortDir }));
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
     } catch {}
-  }, [minDate, selectedPrices, sortField, sortDir]);
+  }, []);
+
+  const handleMinDateChange = useCallback((v: string) => {
+    setMinDate(v);
+    persist({ minDate: v });
+  }, [persist]);
+
+  const handleSelectedPricesChange = useCallback((v: number[]) => {
+    setSelectedPrices(v);
+    persist({ selectedPrices: v });
+  }, [persist]);
+
+  const handleSortChange = useCallback((field: SortField, dir: SortDirection) => {
+    setSortField(field);
+    setSortDir(dir);
+    persist({ sortField: field, sortDir: dir });
+  }, [persist]);
 
   // Check if data is stale (>24 hours old)
   const isStale = lastUpdated !== null && (Date.now() - lastUpdated > CACHE_DURATION_MS);
@@ -329,12 +350,12 @@ export default function App() {
           <GameTable
             games={games}
             minDate={minDate}
-            onMinDateChange={setMinDate}
+            onMinDateChange={handleMinDateChange}
             selectedPrices={selectedPrices}
-            onPriceFilterChange={setSelectedPrices}
+            onPriceFilterChange={handleSelectedPricesChange}
             sortField={sortField}
             sortDir={sortDir}
-            onSortChange={(field, dir) => { setSortField(field); setSortDir(dir); }}
+            onSortChange={handleSortChange}
           />
         )}
       </main>
