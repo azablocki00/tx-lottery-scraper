@@ -129,6 +129,7 @@ export default function GameTable({ games, minDate, onMinDateChange, selectedPri
       const bv = b[sortField];
       let cmp = 0;
       if (typeof av === 'number' && typeof bv === 'number') cmp = av - bv;
+      else if (sortField === 'startDate') cmp = new Date(av as string).getTime() - new Date(bv as string).getTime();
       else cmp = String(av ?? '').localeCompare(String(bv ?? ''));
       return sortDir === 'asc' ? cmp : -cmp;
     });
