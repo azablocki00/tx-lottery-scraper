@@ -7,6 +7,9 @@ interface GameTableProps {
   onMinDateChange: (date: string) => void;
   selectedPrices: number[];
   onPriceFilterChange: (prices: number[]) => void;
+  sortField: SortField;
+  sortDir: SortDirection;
+  onSortChange: (field: SortField, dir: SortDirection) => void;
 }
 
 const fmt = (n: number) =>
@@ -84,17 +87,14 @@ const COLUMNS: ColDef[] = [
   { key: 'overallOdds',           label: 'Overall Odds',       render: g => g.overallOdds,                           align: 'center' },
 ];
 
-export default function GameTable({ games, minDate, onMinDateChange, selectedPrices, onPriceFilterChange }: GameTableProps) {
-  const [sortField, setSortField] = useState<SortField>('ticketPrice');
-  const [sortDir, setSortDir] = useState<SortDirection>('asc');
+export default function GameTable({ games, minDate, onMinDateChange, selectedPrices, onPriceFilterChange, sortField, sortDir, onSortChange }: GameTableProps) {
   const [showPriceFilter, setShowPriceFilter] = useState(false);
 
   const handleSort = (field: SortField) => {
     if (field === sortField) {
-      setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
+      onSortChange(field, sortDir === 'asc' ? 'desc' : 'asc');
     } else {
-      setSortField(field);
-      setSortDir('asc');
+      onSortChange(field, 'asc');
     }
   };
 
