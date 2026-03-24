@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import type { Game, GameSummary, GameDetail } from './types/Game';
+import type { Game, GameSummary, GameDetail, SortField, SortDirection } from './types/Game';
 import GameTable from './components/GameTable';
 import LoadingBar from './components/LoadingBar';
 import ExportButton from './components/ExportButton';
@@ -9,6 +9,29 @@ type AppState = 'idle' | 'fetching-list' | 'fetching-details' | 'done' | 'error'
 const BATCH_SIZE = 8; // concurrent detail requests
 const CACHE_KEY = 'tx-lottery-games-cache';
 const CACHE_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
+const SETTINGS_KEY = 'tx-lottery-settings';
+
+interface Settings {
+  minDate: string;
+  selectedPrices: number[];
+  sortField: SortField;
+  sortDir: SortDirection;
+}
+
+const DEFAULT_SETTINGS: Settings = {
+  minDate: '2025-01-01',
+  selectedPrices: [],
+  sortField: 'ticketPrice',
+  sortDir: 'asc',
+};
+
+function loadSettings(): Settings {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (raw) return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+  } catch {}
+  return DEFAULT_SETTINGS;
+}
 
 interface CachedData {
   games: Game[];
@@ -49,9 +72,17 @@ export default function App() {
   const [errorMsg, setErrorMsg] = useState('');
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
   
-  // Filter state
-  const [minDate, setMinDate] = useState('2025-01-01');
-  const [selectedPrices, setSelectedPrices] = useState<number[]>([]);
+  // Filter + sort state (persisted to localStorage)
+  const [minDate, setMinDate] = useState<string>(() => loadSettings().minDate);
+  const [selectedPrices, setSelectedPrices] = useState<number[]>(() => loadSettings().selectedPrices);
+  const [sortField, setSortField] = useState<SortField>(() => loadSettings().sortField);
+  const [sortDir, setSortDir] = useState<SortDirection>(() => loadSettings().sortDir);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify({ minDate, selectedPrices, sortField, sortDir }));
+    } catch {}
+  }, [minDate, selectedPrices, sortField, sortDir]);
 
   // Check if data is stale (>24 hours old)
   const isStale = lastUpdated !== null && (Date.now() - lastUpdated > CACHE_DURATION_MS);
@@ -295,12 +326,15 @@ export default function App() {
 
         {/* Table */}
         {games.length > 0 && (
-          <GameTable 
+          <GameTable
             games={games}
             minDate={minDate}
             onMinDateChange={setMinDate}
             selectedPrices={selectedPrices}
             onPriceFilterChange={setSelectedPrices}
+            sortField={sortField}
+            sortDir={sortDir}
+            onSortChange={(field, dir) => { setSortField(field); setSortDir(dir); }}
           />
         )}
       </main>
