@@ -357,21 +357,6 @@ export default function App() {
           </div>
         )}
 
-        {/* Legend */}
-        {games.length > 0 && (
-          <div className="flex gap-4 text-xs text-gray-500">
-            <span className="flex items-center gap-1">
-              <span className="w-3 h-3 rounded bg-red-100 inline-block border border-red-200" /> No top prizes remaining
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="text-red-600 font-medium">Red Max Loss</span> = guaranteed net loss if buying full pack
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="text-green-600 font-medium">Green Max Loss ✓</span> = pack guaranteed to return at least face value
-            </span>
-          </div>
-        )}
-
         {/* Idle state */}
         {appState === 'idle' && games.length === 0 && (
           <div className="text-center py-20 text-gray-400">
