@@ -54,38 +54,24 @@ interface ColDef {
   lastFrozen?: boolean; // adds a right border to visually close the frozen pane
 }
 
-// Game # and Game Name are frozen (sticky left). Mobile-visible columns lead.
-const GAME_NUM_WIDTH = 64;
-
+// Game Name is the sole frozen column (sticky left-0). Mobile-visible columns lead.
 const COLUMNS: ColDef[] = [
-  {
-    key: 'gameNumber',
-    label: 'Game #',
-    render: g => (
-      <a href={g.detailUrl} target="_blank" rel="noopener noreferrer"
-         className="text-blue-600 hover:text-blue-800 hover:underline font-medium">
-        {g.gameNumber}
-      </a>
-    ),
-    align: 'center',
-    mobileVisible: true,
-    frozen: true,
-    frozenLeft: 0,
-    fixedWidth: GAME_NUM_WIDTH,
-  },
   {
     key: 'gameName',
     label: 'Name',
     render: g => (
       <div style={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
            title={g.gameName}>
-        {g.gameName}
+        <a href={g.detailUrl} target="_blank" rel="noopener noreferrer"
+           className="text-blue-600 hover:text-blue-800 hover:underline font-medium">
+          {g.gameName}
+        </a>
       </div>
     ),
     align: 'left',
     mobileVisible: true,
     frozen: true,
-    frozenLeft: GAME_NUM_WIDTH,
+    frozenLeft: 0,
     lastFrozen: true,
   },
   { key: 'overallOdds',   label: 'Odds',   render: g => fmtOdds(g.overallOdds),  align: 'center', mobileVisible: true },
@@ -325,7 +311,7 @@ export default function GameTable({ games, minDate, onMinDateChange, selectedPri
                         ${col.lastFrozen ? 'border-r-2 border-gray-200' : ''}
                         ${getColClass(col)}`}
                     >
-                      {isLoading && !col.mobileVisible
+                      {isLoading && col.key !== 'gameName' && !col.mobileVisible
                         ? <span className="inline-block w-12 h-4 bg-gray-200 rounded animate-pulse" />
                         : isError && col.key === 'packSize'
                           ? <span className="text-yellow-600 text-xs">{game.errorMessage || 'Error'}</span>
