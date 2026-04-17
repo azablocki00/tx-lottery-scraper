@@ -11,6 +11,12 @@ const CACHE_KEY = 'tx-lottery-games-cache';
 const CACHE_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
 const SETTINGS_KEY = 'tx-lottery-settings';
 
+function isRefreshedToday(utcIsoString: string): boolean {
+  const todayUtc = new Date().toISOString().split('T')[0];
+  const updateDateUtc = new Date(utcIsoString).toISOString().split('T')[0];
+  return todayUtc === updateDateUtc;
+}
+
 interface Settings {
   minDate: string;
   selectedPrices: number[];
@@ -71,6 +77,7 @@ export default function App() {
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [errorMsg, setErrorMsg] = useState('');
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
+  const [cloudLastUpdated, setCloudLastUpdated] = useState<string | null>(null);
   
   // Filter + sort state (persisted to localStorage)
   const [minDate, setMinDate] = useState<string>(() => loadSettings().minDate);
@@ -105,11 +112,14 @@ export default function App() {
     persist({ sortField: field, sortDir: dir });
   }, [persist]);
 
-  // Check if data is stale (>24 hours old)
-  const isStale = lastUpdated !== null && (Date.now() - lastUpdated > CACHE_DURATION_MS);
+  const refreshedToday = cloudLastUpdated !== null && isRefreshedToday(cloudLastUpdated);
+  // Check if data is stale (>24 hours old) and not already refreshed today
+  const isStale = lastUpdated !== null && (Date.now() - lastUpdated > CACHE_DURATION_MS) && !refreshedToday;
 
-  // Load cached data on mount
+  // Load cached data on mount, then check cloud for newer data
   useEffect(() => {
+    let localTimestamp: number | null = null;
+
     const cached = localStorage.getItem(CACHE_KEY);
     if (cached) {
       try {
@@ -118,12 +128,31 @@ export default function App() {
           setGames(data.games);
           setLastUpdated(data.timestamp);
           setAppState('done');
+          localTimestamp = data.timestamp;
         }
       } catch (err) {
         console.error('Failed to load cached data:', err);
         localStorage.removeItem(CACHE_KEY);
       }
     }
+
+    // Check cloud for newer data; runs after local is displayed
+    fetch('/.netlify/functions/get-cloud-data')
+      .then(res => (res.ok ? res.json() : Promise.reject()))
+      .then(cloud => {
+        if (!cloud.lastUpdated) return;
+        setCloudLastUpdated(cloud.lastUpdated);
+        const cloudTime = new Date(cloud.lastUpdated).getTime();
+        if (cloud.games?.length > 0 && (localTimestamp === null || cloudTime > localTimestamp)) {
+          setGames(cloud.games);
+          setLastUpdated(cloudTime);
+          setAppState('done');
+          try {
+            localStorage.setItem(CACHE_KEY, JSON.stringify({ games: cloud.games, timestamp: cloudTime }));
+          } catch {}
+        }
+      })
+      .catch(() => {}); // silently fall back to local data if cloud is unavailable
   }, []);
 
   const loadGames = useCallback(async () => {
@@ -216,25 +245,33 @@ export default function App() {
       );
     }
 
+    const freshGames = completedGames.length > 0 ? completedGames : initGames;
+
     // Save to localStorage
     const timestamp = Date.now();
-    const cacheData: CachedData = {
-      games: completedGames.length > 0 ? completedGames : initGames,
-      timestamp
-    };
-    
     try {
-      localStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
+      localStorage.setItem(CACHE_KEY, JSON.stringify({ games: freshGames, timestamp }));
       setLastUpdated(timestamp);
     } catch (err) {
       console.error('Failed to cache data:', err);
     }
+
+    // Save to cloud (fire-and-forget; updates shared lastUpdated for all users)
+    fetch('/.netlify/functions/save-cloud-data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ games: freshGames }),
+    })
+      .then(res => (res.ok ? res.json() : Promise.reject()))
+      .then(data => setCloudLastUpdated(data.lastUpdated))
+      .catch(() => console.error('Failed to save to cloud'));
 
     setAppState('done');
   }, []);
 
   const doneCount = games.filter(g => g.status === 'done').length;
   const isLoading = appState === 'fetching-list' || appState === 'fetching-details';
+  const refreshDisabled = isLoading || refreshedToday;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -253,9 +290,10 @@ export default function App() {
             <ExportButton games={games} disabled={isLoading} />
             <button
               onClick={loadGames}
-              disabled={isLoading}
-              className="px-5 py-2 bg-white text-blue-900 font-semibold rounded-lg 
-                         hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed 
+              disabled={refreshDisabled}
+              title={refreshedToday ? 'Data was already refreshed today — check back tomorrow' : undefined}
+              className="px-5 py-2 bg-white text-blue-900 font-semibold rounded-lg
+                         hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed
                          transition-colors flex items-center gap-2"
             >
               {isLoading ? (
